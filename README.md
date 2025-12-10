@@ -22,17 +22,6 @@ The system is built as a full-stack application:
 - **Global Volume**: Control master volume alongside individual stem volumes.
 - **History**: Access previously processed tracks.
 
-## 📸 Screenshots
-
-### Home & Upload
-![Home View](docs/images/home_view.png)
-
-### Music Library
-![Music Library](docs/images/library.png)
-
-### Player Modal
-![Player Modal](docs/images/player_modal.png)
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -83,3 +72,14 @@ The frontend runs on `http://localhost:5173`.
 - `output/`: Processed audio results (stems).
 
 For more detailed documentation, check the [Backend README](./backend/README.md) and [Frontend README](./frontend/README.md).
+
+## 📸 Screenshots
+
+### Home & Upload
+![Home View](docs/images/home_view.png)
+
+### Music Library
+![Music Library](docs/images/library.png)
+
+### Player Modal
+![Player Modal](docs/images/player_modal.png)
