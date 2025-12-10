@@ -12,6 +12,7 @@ import wave
 import soundfile as sf
 import numpy as np
 import json
+from vocal_split import separate_lead_and_backing
 
 app = Flask(__name__)
 CORS(app)
@@ -108,6 +109,42 @@ def get_track_history():
 def list_history():
     return jsonify(get_track_history())
 
+def process_and_collect_stems(final_output_dir, folder_id, original_filename):
+    stems = []
+    print(f"Processing stems in: {final_output_dir}")
+    for stem_file in os.listdir(final_output_dir):
+         if stem_file == original_filename or stem_file == 'metadata.json': continue
+         if stem_file.endswith('.wav') or stem_file.endswith('.mp3'):
+             stems.append({
+                 'name': stem_file,
+                 'url': f'/api/download/{folder_id}/{stem_file}'
+             })
+             
+             if stem_file == 'vocals.wav':
+                print("Found vocals.wav, attempting to split...")
+                try:
+                    generated_stems = separate_lead_and_backing(os.path.join(final_output_dir, 'vocals.wav'), final_output_dir)
+                    print(f"Generated sub-stems: {generated_stems}")
+                    for gen_stem in generated_stems:
+                        stem_name = os.path.basename(gen_stem)
+                        new_name = None
+                        if 'Vocals' in stem_name:
+                            new_name = 'lead.wav'
+                        elif 'Instrumental' in stem_name:
+                            new_name = 'backing.wav'
+                        
+                        if new_name:
+                            new_path = os.path.join(final_output_dir, new_name)
+                            shutil.move(gen_stem, new_path)
+                            stems.append({
+                                'name': new_name,
+                                'url': f'/api/download/{folder_id}/{new_name}'
+                            })
+                except Exception as e:
+                     print(f"Error splitting vocals: {e}")
+    return stems
+
+
 @app.route('/api/separate', methods=['POST'])
 def separate_audio():
     if 'file' not in request.files:
@@ -170,14 +207,8 @@ def separate_audio():
                 pass
 
             # Construct response
-            stems = []
-            for stem_file in os.listdir(final_output_dir):
-                 if stem_file == filename or stem_file == 'metadata.json': continue
-                 if stem_file.endswith('.wav'):
-                     stems.append({
-                         'name': stem_file,
-                         'url': f'/api/download/{folder_id}/{stem_file}'
-                     })
+            stems = process_and_collect_stems(final_output_dir, folder_id, filename)
+
             
             return jsonify({
                 'message': 'Separation successful',
@@ -297,14 +328,8 @@ def separate_url():
             pass
 
         # Construct response
-        stems = []
-        for stem_file in os.listdir(final_output_dir):
-             if stem_file == filename or stem_file == 'metadata.json': continue
-             if stem_file.endswith('.wav') or stem_file.endswith('.mp3'):
-                 stems.append({
-                     'name': stem_file,
-                     'url': f'/api/download/{folder_id}/{stem_file}'
-                 })
+        stems = process_and_collect_stems(final_output_dir, folder_id, filename)
+
         
         return jsonify({
             'message': 'Separation successful',
