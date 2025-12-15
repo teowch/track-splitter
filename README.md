@@ -29,6 +29,8 @@ The system is built as a full-stack application:
 - Node.js & npm
 - Python 3.8+
 - [FFmpeg](https://ffmpeg.org/download.html) (must be in your system PATH)
+- [CUDA](https://developer.nvidia.com/cuda-downloads) (for GPU acceleration)
+- [NVIDIA Driver](https://www.nvidia.com/Download/index.aspx) (for GPU acceleration)
 
 ### Running the Application
 

@@ -11,6 +11,7 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import numpy as np
+import soundfile as sf
 
 import static_ffmpeg
 static_ffmpeg.add_paths()
@@ -27,8 +28,21 @@ CORS(app)
 # ==========================================
 # CONSTANTS & CONFIG
 # ==========================================
+# Use "Library" folder at the project root (level up from backend if running from backend)
+# The user wants "Library" on root. 
+# Current working directory when running `python api.py` is usually `e:\dev\track-splitter\backend`
+# So project root is `..`.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+# However, if user runs from root, we need to be careful.
+# Let's assume Library is sibling to backend folder structure-wise or just at project root.
+# Construct path relative to this file to be safe.
+LIBRARY_FOLDER = os.path.join(PROJECT_ROOT, 'Library')
+
 UPLOAD_FOLDER = os.path.abspath('uploads')
-OUTPUT_FOLDER = os.path.abspath('output')
+# OUTPUT_FOLDER is now LIBRARY_FOLDER for history scanning
+OUTPUT_FOLDER = LIBRARY_FOLDER 
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -44,7 +58,7 @@ SESSION_HISTORY = []
 # ==========================================
 
 def load_history_from_disk():
-    """Scans OUTPUT_FOLDER and populates SESSION_HISTORY and TRACK_SESSIONS."""
+    """Scans OUTPUT_FOLDER (Library) and populates SESSION_HISTORY and TRACK_SESSIONS."""
     print(f"Scanning for existing history in {OUTPUT_FOLDER}...")
     if not os.path.exists(OUTPUT_FOLDER):
         return
@@ -68,12 +82,6 @@ def load_history_from_disk():
                 # Scan stems
                 stems_list = []
                 original_file = None
-                
-                # Heuristic for original file:
-                # Look for file matching original_name (secure_filename might have changed it)
-                # Or just any file that is not a known stem output? 
-                # AudioProcessor outputs: base_vocals, base_instrumental, lead, backing, drums, bass, etc.
-                # But we don't have that list strictly defined here. 
                 
                 # Let's list all audio files
                 all_audio = []
@@ -190,9 +198,14 @@ def separate_audio():
             temp_input_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(temp_input_path)
             
-            # Initialize AudioProcessor
-            # It creates a temp folder automatically
-            processor = AudioProcessor(temp_input_path)
+            # Prepare Output Folder in Library
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename_no_ext = os.path.splitext(filename)[0]
+            folder_id = f"{timestamp}_{filename_no_ext}" 
+            output_dir = os.path.join(LIBRARY_FOLDER, folder_id)
+
+            # Initialize AudioProcessor with specific output dir
+            processor = AudioProcessor(temp_input_path, output_dir=output_dir)
             
             # Run Enriched Separation Logic
             # 1. Vocals vs Instrumental
@@ -205,20 +218,15 @@ def separate_audio():
             processor.extract_instruments()
             
             # Post-Processing:
-            # We need to ensure the 'original' file is also in the output folder so the frontend can download it.
+            # We need to ensure the 'original' file is also in the output folder
             shutil.copy(temp_input_path, os.path.join(processor.output_folder, filename))
             
-            # Clean up upload input?
+            # Clean up upload input
             try:
                 os.remove(temp_input_path)
             except:
                 pass
 
-            # Create Session ID
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename_no_ext = os.path.splitext(filename)[0]
-            folder_id = f"{timestamp}_{filename_no_ext}" # Logic from app.py
-            
             # Register in Session
             TRACK_SESSIONS[folder_id] = {
                 'path': processor.output_folder,
@@ -226,8 +234,6 @@ def separate_audio():
             }
             
             # Scan for stems
-            # AudioProcessor produces specific names.
-            # We scan the folder to be generic and catch everything.
             stems_list = []
             for f in os.listdir(processor.output_folder):
                 if f == filename: continue # valid original
@@ -244,31 +250,15 @@ def separate_audio():
                 'original': filename
             }
             
+            # Prepend to history
             SESSION_HISTORY.insert(0, track_data)
-            
-            # Return objects for separate endpoint if we want (it's unused by frontend logic which reloads history, 
-            # but maybe useful for debug). 
-            # actually app.py returned objects here. 
-            # but to be safe and consistent with what I just put in SESSION_HISTORY:
-            # Let's return the simplified list or reconstruct objects for the response?
-            # App.jsx: handleUploadSuccess uses newTrackData.id. 
-            # It DOES NOT use stems from here.
-            # So returning same track_data (strings) is fine.
-            
-            # Use objects for response just in case some other client uses it?
-            # No, let's stick to what we put in history.
-            
-            # Re-construct stems response as objects to match app.py 'separate' behavior 
-            # just in case (e.g. debugging/direct api usage), 
-            # although App.jsx loads from history (strings).
-            # The user error came from rendering from HISTORY.
             
             resp_stems = [{'name': s, 'url': f'/api/download/{folder_id}/{s}'} for s in stems_list]
 
             return jsonify({
                 'message': 'Separation successful',
                 'id': folder_id,
-                'stems': resp_stems # Return objects here to mimic app.py separate()
+                'stems': resp_stems 
             })
 
         except Exception as e:
@@ -287,8 +277,6 @@ def separate_url():
         
     try:
         # 1. Download (Reuse logic from app.py)
-        # We need to duplicate the download_audio_from_url function or import it if compatible.
-        # I'll inline a simplified version for api.py
         import yt_dlp
         
         ydl_opts = {
@@ -313,8 +301,14 @@ def separate_url():
         if not os.path.exists(downloaded_filepath):
              return jsonify({'error': 'Download failed'}), 500
 
+        # Prepare Output Folder in Library
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_no_ext = os.path.splitext(filename)[0]
+        folder_id = f"{timestamp}_{secure_filename(filename_no_ext)}"
+        output_dir = os.path.join(LIBRARY_FOLDER, folder_id)
+
         # 2. Process
-        processor = AudioProcessor(downloaded_filepath)
+        processor = AudioProcessor(downloaded_filepath, output_dir=output_dir)
         processor.extract_vocals_instrumental()
         processor.extract_lead_backing()
         processor.extract_instruments()
@@ -327,10 +321,6 @@ def separate_url():
         except: pass
 
         # 3. Register Session
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename_no_ext = os.path.splitext(filename)[0]
-        folder_id = f"{timestamp}_{secure_filename(filename_no_ext)}"
-        
         TRACK_SESSIONS[folder_id] = {
             'path': processor.output_folder,
             'original': filename
@@ -368,6 +358,8 @@ def separate_url():
 @app.route('/api/download/<folder_id>/<filename>', methods=['GET'])
 def download_file(folder_id, filename):
     if folder_id not in TRACK_SESSIONS:
+        # Check if it exists on disk even if not in memory (e.g. after restart)
+        # Should have been loaded by load_history_from_disk
         return jsonify({'error': 'Track session expired or not found'}), 404
     
     directory = TRACK_SESSIONS[folder_id]['path']
@@ -387,112 +379,62 @@ def unify_tracks():
         
     directory = TRACK_SESSIONS[folder_id]['path']
     
-    # --- REUSE LOGIC FROM APP.PY ---
-    # To avoid errors, I'll copy the wave logic exactly.
-    
-    inputs = []
-    stems_for_name = []
-    sorted_tracks = sorted(track_names)
-    
-    for name in sorted_tracks:
-        path = os.path.join(directory, name)
-        if os.path.exists(path):
-            inputs.append(path)
-            stem_name = os.path.splitext(name)[0]
-            stems_for_name.append(stem_name)
-    
-    if not inputs:
-        return jsonify({'error': 'No valid tracks selected'}), 400
-
-    new_stem_name = "_".join(stems_for_name) + ".unified.wav"
-    output_path = os.path.join(directory, new_stem_name)
-    
-    if os.path.exists(output_path):
-        return jsonify({'error': 'Unification already created with this name'}), 400
-        
-    # ... (Wave mixing logic) ...
-    handles = []
+    # --- UNIFY LOGIC (SoundFile) ---
     try:
+        data_list = []
+        sr = None
+        
+        # 1. Read all files (supports FLAC, WAV, etc.)
         for p in inputs:
             try:
-                h = wave.open(p, 'rb')
-                handles.append(h)
-            except wave.Error:
-                 return jsonify({'error': f"Failed to open {os.path.basename(p)}"}), 400
-                 
-        if not handles: return jsonify({'error': 'No tracks opened'}), 500
-        
-        params0 = handles[0].getparams()
-        framerate = params0.framerate
-        sampwidth = params0.sampwidth
-        max_channels = 0
-        max_frames = 0
-        
-        for h in handles:
-            if h.getframerate() != framerate: return jsonify({'error': 'Sample rate mismatch'}), 400
-            if h.getsampwidth() != sampwidth: return jsonify({'error': 'Bit depth mismatch'}), 400
-            if h.getnchannels() > max_channels: max_channels = h.getnchannels()
-            if h.getnframes() > max_frames: max_frames = h.getnframes()
-            
-        # Support mono->stereo mix
-        for h in handles:
-             if h.getnchannels() != max_channels and not (h.getnchannels() == 1 and max_channels > 1):
-                  return jsonify({'error': 'Channel mismatch'}), 400
-                  
-        if sampwidth == 2:
-            dtype = np.int16
-            min_val, max_val = -32768, 32767
-            bias = 0
-        elif sampwidth == 1:
-            dtype = np.uint8
-            min_val, max_val = 0, 255
-            bias = 128
-        else:
-            return jsonify({'error': 'Unsupported bit depth'}), 400
+                data, samplerate = sf.read(p)
+                
+                if sr is None: 
+                    sr = samplerate
+                elif sr != samplerate: 
+                    return jsonify({'error': f'Sample rate mismatch: {os.path.basename(p)} is {samplerate}, expected {sr}'}), 400
+                
+                # Normalize shapes: ensure (N, channels)
+                if data.ndim == 1:
+                    data = data[:, np.newaxis]
+                    
+                data_list.append(data)
+            except Exception as e:
+                return jsonify({'error': f"Failed to read {os.path.basename(p)}: {str(e)}"}), 400
 
-        with wave.open(output_path, 'wb') as out_wav:
-             out_wav.setnchannels(max_channels)
-             out_wav.setsampwidth(sampwidth)
-             out_wav.setframerate(framerate)
-             
-             chunk_size = 65536
-             total_processed = 0
-             
-             while total_processed < max_frames:
-                 current_batch_size = min(chunk_size, max_frames - total_processed)
-                 acc_len = current_batch_size * max_channels
-                 accumulator = np.zeros(acc_len, dtype=np.int32)
-                 
-                 for h in handles:
-                     raw_bytes = h.readframes(current_batch_size)
-                     if not raw_bytes: continue
-                     
-                     arr = np.frombuffer(raw_bytes, dtype=dtype)
-                     if sampwidth == 1: arr = arr.astype(np.int32) - bias
-                     else: arr = arr.astype(np.int32)
-                     
-                     if h.getnchannels() == 1 and max_channels > 1:
-                         arr = np.repeat(arr, max_channels)
-                         
-                     l = len(arr)
-                     if l > len(accumulator): l = len(accumulator)
-                     accumulator[:l] += arr[:l]
-                 
-                 if sampwidth == 1: accumulator = accumulator + bias
-                 accumulator = np.clip(accumulator, min_val, max_val)
-                 
-                 if sampwidth == 1: out_bytes = accumulator.astype(np.uint8).tobytes()
-                 else: out_bytes = accumulator.astype(np.int16).tobytes()
-                 
-                 out_wav.writeframes(out_bytes)
-                 total_processed += current_batch_size
+        if not data_list: 
+             return jsonify({'error': 'No audio data read'}), 500
+
+        # 2. Mix
+        # Determine max length and max channels
+        max_len = max(len(d) for d in data_list)
+        max_ch = max(d.shape[1] for d in data_list)
+        
+        # Initialize accumulator
+        mixed = np.zeros((max_len, max_ch), dtype=np.float32)
+        
+        for d in data_list:
+            length, channels = d.shape
+            
+            # Expand channels if mono->stereo
+            if channels == 1 and max_ch > 1:
+                d = np.tile(d, (1, max_ch))
+            elif channels != max_ch:
+                return jsonify({'error': 'Channel mismatch (non-mono)'}), 400
+            
+            # Add to mix
+            mixed[:length, :] += d
+
+        # 3. Clip to avoid distortion (Soft clip or Hard clip?)
+        # Simple hard clip to starts with
+        mixed = np.clip(mixed, -1.0, 1.0)
+        
+        # 4. Write output (WAV or FLAC based on extension, typically .wav here)
+        sf.write(output_path, mixed, sr)
 
         # Update History Item stems list
-        # We need to find the history item and update its stems
         for item in SESSION_HISTORY:
             if item['id'] == folder_id:
-                # Refresh stems
-                # Or just append the new one
                 exists = False
                 for s in item['stems']:
                     if s == new_stem_name: exists = True
@@ -507,11 +449,9 @@ def unify_tracks():
         if os.path.exists(output_path):
              try: os.remove(output_path)
              except: pass
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-    finally:
-        for h in handles:
-            try: h.close()
-            except: pass
 
 @app.route('/api/zip/<folder_id>', methods=['GET'])
 def download_zip(folder_id):

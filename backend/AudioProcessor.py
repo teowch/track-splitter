@@ -3,6 +3,8 @@ import os
 import tempfile
 import logging
 
+import torch
+
 class AudioProcessor:
     output_names = {
         "vocal_instrumental": {
@@ -23,13 +25,46 @@ class AudioProcessor:
         }
     }
 
-    def __init__(self, input_audio, output_format="flac"):
+    def __init__(self, input_audio, output_format="flac", output_dir=None):
         self.input_audio = input_audio
         self.output_format = output_format
-        # Cria uma pasta única para esse "projeto"
-        self.output_folder = tempfile.mkdtemp(prefix="audio_project_")
         
+        # Determine output folder
+        if output_dir:
+            self.output_folder = output_dir
+        else:
+            # Default to "Library" in the current working directory if not specified
+            # We create a subfolder based on the input filename to keep it organized
+            base_name = os.path.splitext(os.path.basename(input_audio))[0]
+            library_path = os.path.join(os.getcwd(), 'Library')
+            self.output_folder = os.path.join(library_path, base_name)
+
+        os.makedirs(self.output_folder, exist_ok=True)
+        
+        # Check for CUDA capability
+        device_env = 'auto'
+        try:
+            if torch.cuda.is_available():
+                # Try a small operation to ensure kernels are compatible
+                print("Testing CUDA compatibility...")
+                torch.tensor([1.0]).cuda()
+                print("CUDA is available and working.")
+            else:
+                print("CUDA not available in Torch.")
+        except RuntimeError as e:
+            print(f"CUDA validation failed: {e}")
+            print("Falling back to CPU.")
+            device_env = 'cpu'
+        except Exception as e:
+            print(f"Unexpected error during CUDA check: {e}")
+            print("Falling back to CPU.")
+            device_env = 'cpu'
+            
         # O Separator é inicializado uma vez, mas carregamos modelos sob demanda
+        if device_env == 'cpu':
+             os.environ["CUDA_VISIBLE_DEVICES"] = ""
+             print("Forced CPU mode by hiding CUDA devices.")
+
         self.separator = Separator(
             output_dir=self.output_folder, 
             output_format=self.output_format

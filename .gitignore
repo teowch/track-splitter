@@ -5,3 +5,4 @@ output/
 uploads/
 node_modules/
 __pycache__/
+.python-version
