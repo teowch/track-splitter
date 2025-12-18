@@ -72,16 +72,25 @@ def load_history_from_disk():
         folder_path = os.path.join(OUTPUT_FOLDER, folder_name)
         if os.path.isdir(folder_path):
             try:
-                # Expecting format: YYYYMMDD_HHMMSS_Name
-                parts = folder_name.split('_', 2)
-                if len(parts) < 2: continue # Skip invalid folders
+                # Try to read metadata.json
+                metadata_path = os.path.join(folder_path, 'metadata.json')
                 
-                timestamp_str = f"{parts[0]}_{parts[1]}"
-                original_name = parts[2] if len(parts) > 2 else folder_name
+                track_id = folder_name # Default ID is folder name
+                track_name = folder_name # Default name is folder name
+                original_file = None
+                
+                if os.path.exists(metadata_path):
+                    try:
+                        with open(metadata_path, 'r') as f:
+                            meta = json.load(f)
+                            track_id = meta.get('id', folder_name)
+                            track_name = meta.get('name', folder_name)
+                            original_file = meta.get('original_file')
+                    except Exception as e:
+                        print(f"Error reading metadata for {folder_name}: {e}")
                 
                 # Scan stems
                 stems_list = []
-                original_file = None
                 
                 # Let's list all audio files
                 all_audio = []
@@ -89,25 +98,19 @@ def load_history_from_disk():
                     if f.endswith('.wav') or f.endswith('.mp3') or f.endswith('.flac'):
                         all_audio.append(f)
                 
-                # Try to find original
-                for f in all_audio:
-                    # If filename matches the folder suffix roughly
-                    if os.path.splitext(f)[0] == original_name:
-                         original_file = f
-                    elif secure_filename(os.path.splitext(f)[0]) == original_name:
-                         original_file = f
+                # If we don't have original_file from metadata, try to guess or just leave it
+                # If we know original_file, exclude it from stems
                 
-                # Populate stems list
                 for f in all_audio:
-                    if f == original_file: continue
+                    if original_file and f == original_file: continue
                     stems_list.append(f)
                 
                 stems_list = sorted(stems_list)
                 
                 track_data = {
-                    'id': folder_name,
-                    'name': original_name,
-                    'date': timestamp_str,
+                    'id': track_id,
+                    'name': track_name,
+                    'date': track_id, # ID is now the timestamp
                     'stems': stems_list,
                 }
                 if original_file:
@@ -116,7 +119,7 @@ def load_history_from_disk():
                 found_folders.append(track_data)
                 
                 # Register in TRACK_SESSIONS so downloads work
-                TRACK_SESSIONS[folder_name] = {
+                TRACK_SESSIONS[track_id] = {
                     'path': folder_path,
                     'original': original_file
                 }
@@ -199,9 +202,8 @@ def separate_audio():
             file.save(temp_input_path)
             
             # Prepare Output Folder in Library
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename_no_ext = os.path.splitext(filename)[0]
-            folder_id = f"{timestamp}_{filename_no_ext}" 
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            folder_id = timestamp
             output_dir = os.path.join(LIBRARY_FOLDER, folder_id)
 
             # Initialize AudioProcessor with specific output dir
@@ -220,6 +222,15 @@ def separate_audio():
             # Post-Processing:
             # We need to ensure the 'original' file is also in the output folder
             shutil.copy(temp_input_path, os.path.join(processor.output_folder, filename))
+
+            # Save metadata.json
+            metadata = {
+                'id': folder_id,
+                'name': filename_no_ext, # Original User Filename
+                'original_file': filename
+            }
+            with open(os.path.join(processor.output_folder, 'metadata.json'), 'w') as f:
+                json.dump(metadata, f, indent=2)
             
             # Clean up upload input
             try:
@@ -237,6 +248,7 @@ def separate_audio():
             stems_list = []
             for f in os.listdir(processor.output_folder):
                 if f == filename: continue # valid original
+                if f == 'metadata.json': continue
                 if f.endswith('.wav') or f.endswith('.mp3') or f.endswith('.flac'):
                     stems_list.append(f)
             
@@ -302,9 +314,9 @@ def separate_url():
              return jsonify({'error': 'Download failed'}), 500
 
         # Prepare Output Folder in Library
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         filename_no_ext = os.path.splitext(filename)[0]
-        folder_id = f"{timestamp}_{secure_filename(filename_no_ext)}"
+        folder_id = timestamp
         output_dir = os.path.join(LIBRARY_FOLDER, folder_id)
 
         # 2. Process
@@ -315,6 +327,15 @@ def separate_url():
         
         # Copy original
         shutil.copy(downloaded_filepath, os.path.join(processor.output_folder, filename))
+
+        # Save metadata.json
+        metadata = {
+            'id': folder_id,
+            'name': filename_no_ext,
+            'original_file': filename
+        }
+        with open(os.path.join(processor.output_folder, 'metadata.json'), 'w') as f:
+            json.dump(metadata, f, indent=2)
         
         # Cleanup upload
         try: os.remove(downloaded_filepath)
@@ -329,6 +350,7 @@ def separate_url():
         stems_list = []
         for f in os.listdir(processor.output_folder):
             if f == filename: continue
+            if f == 'metadata.json': continue
             if f.endswith('.wav') or f.endswith('.mp3') or f.endswith('.flac'):
                 stems_list.append(f)
         
@@ -381,6 +403,26 @@ def unify_tracks():
     
     # --- UNIFY LOGIC (SoundFile) ---
     try:
+        # Define output variables
+        # Define output variables
+        input_bases = []
+        for name in track_names:
+            # Remove extension
+            base, _ = os.path.splitext(name)
+            input_bases.append(base)
+            
+        combined_name = "+".join(input_bases)
+        # Scan for existing unified tracks to avoid conflicts if same combo done twice?
+        # Actually timestamp or just overwrite? Overwrite seems fine or append timestamp if needed.
+        # But user asked for "sum of the tracks". 
+        # let's add a short timestamp to ensure uniqueness just in case, or rely on logic.
+        # If I do "Vocals+Drums.unified.wav", and I do it again, it overwrites. This is probably fine.
+        new_stem_name = f"{combined_name}.unified.wav"
+        output_path = os.path.join(directory, new_stem_name)
+        
+        # Prepare inputs
+        inputs = [os.path.join(directory, name) for name in track_names]
+
         data_list = []
         sr = None
         

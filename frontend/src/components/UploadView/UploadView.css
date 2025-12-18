@@ -1,0 +1,130 @@
+.upload-view {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.upload-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 3rem;
+    width: 100%;
+    max-width: 550px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+h2 {
+    margin: 0 0 0.5rem;
+}
+
+.subtitle {
+    color: var(--text-sub);
+    margin-bottom: 2rem;
+}
+
+.mode-switcher {
+    background: var(--bg-hover);
+    padding: 4px;
+    border-radius: 8px;
+    display: inline-flex;
+    margin-bottom: 2rem;
+}
+
+.switcher-btn {
+    padding: 0.6rem 1.5rem;
+    border: none;
+    background: transparent;
+    color: var(--text-sub);
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.switcher-btn.active {
+    background: var(--bg-panel);
+    color: var(--text-main);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.drop-zone {
+    border: 2px dashed var(--border-light);
+    border-radius: 12px;
+    padding: 3rem 1rem;
+    transition: all 0.2s;
+    cursor: pointer;
+    margin-bottom: 2rem;
+}
+
+.drop-zone.drag-active,
+.drop-zone:hover {
+    border-color: var(--primary);
+    background: rgba(124, 77, 255, 0.05);
+}
+
+.drop-zone.has-file {
+    border-style: solid;
+    border-color: var(--accent);
+    background: rgba(3, 218, 198, 0.05);
+}
+
+.hidden-input {
+    display: none;
+}
+
+.placeholder,
+.file-selected {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    pointer-events: none;
+}
+
+.icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+.sub,
+.change-text {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.styled-input {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    border-radius: 8px;
+    color: var(--text-main);
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 2rem;
+    font-size: 1rem;
+}
+
+.styled-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.btn-large {
+    width: 100%;
+    justify-content: center;
+    padding: 1rem;
+    font-size: 1rem;
+}
+
+.error-banner {
+    background: rgba(207, 102, 121, 0.1);
+    color: var(--danger);
+    padding: 0.8rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
