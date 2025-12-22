@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "scripts": {
+    "start-backend": "cd backend && .\\.venv\\Scripts\\python.exe api.py",
+    "start-frontend": "cd frontend && npm run dev",
+    "start": "concurrently -n \"BACKEND,FRONTEND\" -c \"yellow,blue\" \"npm run start-backend\" \"npm run start-frontend\""
+  }
+}
