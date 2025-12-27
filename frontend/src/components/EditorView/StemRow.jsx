@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import './EditorView.css';
+import { useContextMenu } from '../ContextMenu/ContextMenuProvider';
 
 // SVG Icons
 const MuteIcon = ({ active }) => (
@@ -226,8 +227,56 @@ const StemRow = ({
         onUpdate('locked', !sState?.locked);
     };
 
+    // Get the context menu functions
+    const { openMenu } = useContextMenu();
+
+    // Example: Handle right-click on an element
+    const handleContextMenu = (e) => {
+        e.preventDefault(); // Prevent default browser context menu
+
+        // Show the context menu at the click position
+        openMenu(
+            e.clientX,
+            e.clientY,
+            [
+                {
+                    label: 'Delete',
+                    onClick: () => handleDelete(),
+                    danger: true // Makes the item red
+                },
+                {
+                    label: 'Rename',
+                    onClick: () => handleRename()
+                },
+                { separator: true }, // Adds a separator line
+                {
+                    label: 'Properties',
+                    onClick: () => handleProperties(),
+                    disabled: true // Grays out and disables the item
+                }
+            ]
+        );
+    };
+
+    const handleDelete = () => {
+        console.log('Delete clicked');
+        // Your delete logic here
+    };
+
+    const handleRename = () => {
+        console.log('Rename clicked');
+        // Your rename logic here
+    };
+
+    const handleProperties = () => {
+        console.log('Properties clicked');
+        // Your properties logic here
+    };
+
+
     return (
         <div
+            onContextMenu={handleContextMenu}
             className={`stem-row ${sState?.muted ? 'is-muted' : ''} ${sState?.locked ? 'is-locked' : ''}`}
             style={{ display: visible ? 'flex' : 'none' }}
         >

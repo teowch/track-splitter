@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import './App.css'
@@ -9,6 +9,7 @@ import UploadView from './components/UploadView/UploadView'
 import LibraryView from './components/LibraryView/LibraryView'
 import EditorView from './components/EditorView/EditorView'
 import NotFound from './components/NotFound'
+import { ContextMenuProvider } from './components/ContextMenu/ContextMenuProvider'
 
 const API_BASE = 'http://127.0.0.1:5000/api'
 
@@ -80,20 +81,22 @@ function App() {
   }
 
   return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<Navigate to="/split" replace />} />
-          <Route path="/split" element={<UploadView onUploadSuccess={refreshLibrary} />} />
-          {/* Note: UploadView onSuccess handling needs improvement to use useNavigate from within or pass navigate */}
+    <ContextMenuProvider>
+      <div className="app-container">
+        <Sidebar />
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Navigate to="/split" replace />} />
+            <Route path="/split" element={<UploadView onUploadSuccess={refreshLibrary} />} />
+            {/* Note: UploadView onSuccess handling needs improvement to use useNavigate from within or pass navigate */}
 
-          <Route path="/library" element={<LibraryView items={library} refresh={refreshLibrary} />} />
-          <Route path="/library/:id" element={<EditorRoute library={library} onUnify={handleUnify} isLoading={loading} />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </main>
-    </div>
+            <Route path="/library" element={<LibraryView items={library} refresh={refreshLibrary} />} />
+            <Route path="/library/:id" element={<EditorRoute library={library} onUnify={handleUnify} isLoading={loading} />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+      </div>
+    </ContextMenuProvider>
   )
 }
 

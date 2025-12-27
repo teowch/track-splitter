@@ -295,7 +295,7 @@ const EditorView = ({ track, onBack, onUnify }) => {
                                 </div>
                             )}
 
-                            <div className="stems-list" ref={stemsListRef} onPointerDownCapture={handleStageInteraction}>
+                            <div className="stems-list" ref={stemsListRef} onPointerDown={handleStageInteraction}>
                                 {track.stems.map(stem => (
                                     <StemRow
                                         key={stem}
