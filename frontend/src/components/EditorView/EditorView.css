@@ -930,8 +930,6 @@
     flex: 1;
     position: relative;
     background: #141414;
-    cursor: text;
-    /* Like selection tool */
     overflow: hidden;
 }
 

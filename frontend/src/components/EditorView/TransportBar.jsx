@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './EditorView.css'; // Assuming styles are shared or I should make a TransportBar.css? 
 // The user asked to separate css. I already put all css in EditorView.css. 
 // I'll import it here too or just rely on EditorView importing it if it's global, but explicit is better or using CSS modules.
@@ -16,8 +16,23 @@ const formatTime = (t, showMillis = false) => {
     return `${main}.${ms}`;
 };
 
-const Ruler = ({ duration, currentTime, seek, onInteractionStart, onInteractionEnd }) => {
+const Ruler = ({ duration, currentTime, handleMouseDown, onReady }) => {
     const containerRef = React.useRef(null);
+
+    useEffect(() => {
+        if (onReady && containerRef.current) {
+            onReady({
+                getBoundaries: () => {
+                    const rect = containerRef.current.getBoundingClientRect();
+                    return {
+                        left: rect.left,
+                        right: rect.right,
+                        width: rect.width
+                    }
+                }
+            });
+        }
+    }, [onReady]);
 
     // Calculate dynamic ticks based on duration
     const getTicks = () => {
@@ -39,26 +54,6 @@ const Ruler = ({ duration, currentTime, seek, onInteractionStart, onInteractionE
             });
         }
         return ticks;
-    };
-
-    const handleMouseDown = (e) => {
-        if (onInteractionStart) onInteractionStart(true);
-        const update = (clientX) => {
-            const rect = containerRef.current.getBoundingClientRect();
-            const x = clientX - rect.left;
-            const ratio = Math.max(0, Math.min(1, x / rect.width));
-            seek(ratio * duration);
-        };
-        update(e.clientX);
-
-        const onMove = (moveE) => update(moveE.clientX);
-        const onUp = () => {
-            if (onInteractionEnd) onInteractionEnd(false);
-            window.removeEventListener('pointermove', onMove);
-            window.removeEventListener('pointerup', onUp);
-        };
-        window.addEventListener('pointermove', onMove);
-        window.addEventListener('pointerup', onUp);
     };
 
     return (
@@ -108,8 +103,8 @@ const TransportBar = ({
     duration,
     mainVolume,
     setMainVolume,
-    seek,
-    onSliderInteraction
+    handleMouseDown,
+    onRulerReady
 }) => {
     return (
         <div className="transport-bar">
@@ -159,9 +154,8 @@ const TransportBar = ({
                 <Ruler
                     duration={duration}
                     currentTime={currentTime}
-                    seek={seek}
-                    onInteractionStart={onSliderInteraction}
-                    onInteractionEnd={onSliderInteraction}
+                    handleMouseDown={handleMouseDown}
+                    onReady={onRulerReady}
                 />
             </div>
         </div>

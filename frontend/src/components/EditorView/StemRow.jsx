@@ -2,7 +2,23 @@ import React, { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import './EditorView.css';
 import { useContextMenu } from '../ContextMenu/ContextMenuProvider';
-import drumIcon from '../../assets/drum.png';
+import drumsIcon from '../../assets/instruments/drums.png';
+import guitarIcon from '../../assets/instruments/guitar.png';
+import bassIcon from '../../assets/instruments/bass.png';
+import vocalIcon from '../../assets/instruments/vocal.png';
+import pianoIcon from '../../assets/instruments/piano.png';
+import otherIcon from '../../assets/instruments/other.png';
+import instrumentalIcon from '../../assets/instruments/instrumental.png';
+import originalIcon from '../../assets/instruments/original.png';
+
+const getStemIcon = (stemName) => {
+    const parts = stemName.toLowerCase().split('.');
+    const instrument = parts[parts.length - 2];
+    console.log(instrument)
+    const icons = { drumsIcon, bassIcon, guitarIcon, vocalIcon, pianoIcon, otherIcon, instrumentalIcon, originalIcon };
+    if (icons[instrument+'Icon']) return icons[instrument+'Icon'];
+    return null;
+};
 
 
 // SVG Icons
@@ -158,6 +174,8 @@ const StemRow = ({
     isPlaying,
     currentTime,
     audioContext,
+    effectiveVolume,
+    handleMouseDown,
 }) => {
     const containerRef = useRef(null);
     const wsRef = useRef(null);
@@ -321,13 +339,11 @@ const StemRow = ({
         };
     }, [audioUrl, stem, audioContext]);
 
-    // Handle State Updates (Vol, Mute)
+    // Handle Volume Updates from Parent (effective volume includes solo/mute/main logic)
     useEffect(() => {
-        if (!wsRef.current) return;
-        const vol = sState?.vol ?? 0.5;
-        const muted = sState?.muted ?? false;
-        wsRef.current.setVolume(muted ? 0 : vol);
-    }, [sState?.vol, sState?.muted]);
+        if (!wsRef.current || typeof effectiveVolume !== 'number') return;
+        wsRef.current.setVolume(effectiveVolume);
+    }, [effectiveVolume, isReady]);
 
     const handleDownload = () => {
         if (onDownload) {
@@ -375,7 +391,6 @@ const StemRow = ({
         // Your properties logic here
     };
 
-
     return (
         <div
             onContextMenu={handleContextMenu}
@@ -392,7 +407,7 @@ const StemRow = ({
                     >
                         <LockIcon locked={sState?.locked} />
                     </button>
-                    <img src={drumIcon} className="stem-type-icon" />
+                    <img src={getStemIcon(stem)} className="stem-type-icon" />
 
                     <button
                         className="icon-btn btn-remove"
@@ -469,7 +484,9 @@ const StemRow = ({
                 </div>
             </div>
 
-            <div className="waveform-wrapper">
+            <div className="waveform-wrapper"
+                onPointerDown={handleMouseDown}
+            >
                 <div ref={containerRef} className="waveform-container" />
                 {!isReady && <div className="loading-overlay">Loading Waveform...</div>}
                 {sState?.locked && <div className="locked-overlay" title="Stem is locked" />}

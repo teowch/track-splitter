@@ -56,7 +56,7 @@ MODULE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "depends_on": None,
         "input_stem": None,
         "custom_output_names": {
-            "Vocals": "vocals_htdemucs_6s.vocals",
+            "Vocals": "vocals_htdemucs_6s.vocal",
             "Drums": "drums_htdemucs_6s.drums",
             "Bass": "bass_htdemucs_6s.bass",
             "Other": "other_htdemucs_6s.other",

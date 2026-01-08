@@ -7,13 +7,14 @@ A powerful web application for separating audio tracks from music files or YouTu
 The system is built as a full-stack application:
 
 - **Frontend**: React (Vite) for the user interface.
-- **Backend**: Flask (Python) for API handling and audio processing.
+- **Backend**: Flask (Python) with Service-Oriented Architecture (SOA) for API handling and audio processing.
 - **AI Core**: Meta's [Demucs](https://github.com/facebookresearch/demucs) model for high-quality source separation.
 - **Utilities**: `yt-dlp` for YouTube downloads and `ffmpeg` for audio mixing.
 
 ## ✨ Features
 
 - **Upload & Process**: Support for `.wav`, `.mp3`, `.ogg`, `.flac`.
+- **Module Selection**: Choose specific processing modules (e.g., Vocals/Instrumental only).
 - **YouTube Integration**: Process audio directly from YouTube links.
 - **Stem Player**: Listen to individual isolated tracks.
 - **Mixer**: Create custom mixes by combining specific stems.
@@ -51,7 +52,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Run the server
-python app.py
+python api.py
 ```
 
 The backend runs on `http://localhost:5000`.
@@ -71,7 +72,7 @@ The frontend runs on `http://localhost:5173`.
 - `backend/`: Flask API and audio processing logic.
 - `frontend/`: React application.
 - `uploads/`: Temporary storage for uploaded/downloaded files.
-- `output/`: Processed audio results (stems).
+- `Library/`: Processed audio results (stems).
 
 For more detailed documentation, check the [Backend README](./backend/README.md) and [Frontend README](./frontend/README.md).
 

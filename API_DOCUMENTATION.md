@@ -21,12 +21,16 @@ The Track Splitter API is a Flask-based REST API that provides audio processing 
 | Method | Endpoint | Purpose | Input | Output |
 |--------|----------|---------|-------|--------|
 | `GET` | [`/api/history`](#1-get-history) | List all processed tracks | None | Array of track objects |
-| `POST` | [`/api/process`](#2-process-audio-file-upload) | Upload & process audio | Audio file (multipart/form-data) | Track ID + stem filenames |
-| `POST` | [`/api/process-url`](#3-process-audio-url) | Download & process from URL | JSON: `{url: string}` | Track ID + stem filenames |
-| `GET` | [`/api/download/<folder_id>/<filename>`](#4-download-file) | Download a specific file | Path params: folder_id, filename | File (binary) |
-| `POST` | [`/api/unify`](#5-unify-tracks) | Mix multiple stems together | JSON: `{id, tracks[]}` | New unified track name |
-| `GET` | [`/api/zip/<folder_id>`](#6-download-zip-all-files) | Download all files as ZIP | Path param: folder_id | ZIP file (binary) |
-| `POST` | [`/api/zip-selected`](#7-download-zip-selected-files) | Download selected files as ZIP | JSON: `{id, tracks[]}` | ZIP file (binary) |
+| `GET` | [`/api/modules`](#2-get-available-modules) | List available processing modules | None | List of modules |
+| `POST` | [`/api/process`](#3-process-audio-file-upload) | Upload & process audio | Audio file + modules | Track ID + stem filenames |
+| `POST` | [`/api/process-url`](#4-process-audio-url) | Download & process from URL | JSON: `{url, modules}` | Track ID + stem filenames |
+| `GET` | [`/api/project/<project_id>/status`](#5-get-project-status) | Get processing status | Path param: project_id | Status object |
+| `POST` | [`/api/project/<project_id>/run-modules`](#6-run-additional-modules) | Run more modules on existing project | JSON: `{modules}` | Updated track info |
+| `DELETE` | [`/api/delete/<folder_id>`](#7-delete-session) | Delete a session | Path param: folder_id | Success message |
+| `GET` | [`/api/download/<folder_id>/<filename>`](#8-download-file) | Download a specific file | Path params: folder_id, filename | File (binary) |
+| `POST` | [`/api/unify`](#9-unify-tracks) | Mix multiple stems together | JSON: `{id, tracks[]}` | New unified track name |
+| `GET` | [`/api/zip/<folder_id>`](#10-download-zip-all-files) | Download all files as ZIP | Path param: folder_id | ZIP file (binary) |
+| `POST` | [`/api/zip-selected`](#11-download-zip-selected-files) | Download selected files as ZIP | JSON: `{id, tracks[]}` | ZIP file (binary) |
 
 ---
 
@@ -57,12 +61,11 @@ Library/
 
 ### In-Memory State
 
-- **TRACK_SESSIONS:** Dictionary mapping `folder_id` → `{path, original}`
-- **SESSION_HISTORY:** List of all track metadata for history display
+- **ProjectService:** Manages session state and history in memory, serving as the single source of truth for active projects.
 
 ### Persistence
 
-On startup, the API scans the `Library` folder and loads existing tracks into memory using `load_history_from_disk()`.
+On startup, the `ProjectService` scans the `Library` folder and populates the in-memory history.
 
 ---
 
@@ -92,7 +95,33 @@ On startup, the API scans the `Library` folder and loads existing tracks into me
 
 ---
 
-### 2. Process Audio (File Upload)
+### 2. Get Available Modules
+
+**Endpoint:** `GET /api/modules`
+
+**Description:** Retrieves the list of available audio processing modules/workflows.
+
+**Response:**
+```json
+{
+  "modules": [
+    {
+      "id": "vocal_instrumental",
+      "description": "Separate vocals and instrumental",
+      "category": "Source Separation",
+      "depends_on": null
+    },
+    ...
+  ]
+}
+```
+
+**Status Codes:**
+- `200 OK` - Success
+
+---
+
+### 3. Process Audio (File Upload)
 
 **Endpoint:** `POST /api/process`
 
@@ -102,6 +131,7 @@ On startup, the API scans the `Library` folder and loads existing tracks into me
 - **Content-Type:** `multipart/form-data`
 - **Body:**
   - `file` (required): Audio file (`.wav`, `.mp3`, `.ogg`, `.flac`)
+  - `modules` (required): JSON string of list of module IDs to run (e.g., `["vocal_instrumental", "htdemucs_6s"]`)
 
 **Process:**
 1. File is saved to Library folder
@@ -136,7 +166,7 @@ On startup, the API scans the `Library` folder and loads existing tracks into me
 
 ---
 
-### 3. Process Audio (URL)
+### 4. Process Audio (URL)
 
 **Endpoint:** `POST /api/process-url`
 
@@ -147,7 +177,8 @@ On startup, the API scans the `Library` folder and loads existing tracks into me
 - **Body:**
 ```json
 {
-  "url": "https://youtube.com/watch?v=..."
+  "url": "https://youtube.com/watch?v=...",
+  "modules": ["vocal_instrumental", "htdemucs_6s"]
 }
 ```
 
@@ -176,7 +207,68 @@ On startup, the API scans the `Library` folder and loads existing tracks into me
 
 ---
 
-### 4. Download File
+### 5. Get Project Status
+
+**Endpoint:** `GET /api/project/<project_id>/status`
+
+**Description:** Get the current status and results of a project.
+
+**Parameters:**
+- `project_id` (path): Track session ID
+
+**Response:**
+```json
+{
+  "id": "20231225123456_song_name",
+  "executed_modules": {"vocal_instrumental": true},
+  "original_file": "song_name.wav"
+}
+```
+
+**Status Codes:**
+- `200 OK` - Success
+- `404 Not Found` - Project not found
+
+---
+
+### 6. Run Additional Modules
+
+**Endpoint:** `POST /api/project/<project_id>/run-modules`
+
+**Description:** Run additional processing modules on an existing project.
+
+**Request:**
+- **Content-Type:** `application/json`
+- **Body:**
+```json
+{
+  "modules": ["lead_backing"]
+}
+```
+
+**Status Codes:**
+- `200 OK` - Success
+- `404 Not Found` - Project not found
+
+---
+
+### 7. Delete Session
+
+**Endpoint:** `DELETE /api/delete/<folder_id>`
+
+**Description:** Permanently delete a project session and all its files from the library.
+
+**Parameters:**
+- `folder_id` (path): Track session ID
+
+**Status Codes:**
+- `200 OK` - Success
+- `403 Forbidden` - Access denied
+- `404 Not Found` - Session not found
+
+---
+
+### 8. Download File
 
 **Endpoint:** `GET /api/download/<folder_id>/<filename>`
 
@@ -200,7 +292,7 @@ GET /api/download/20231225123456_song_name/vocals.flac
 
 ---
 
-### 5. Unify Tracks
+### 9. Unify Tracks
 
 **Endpoint:** `POST /api/unify`
 
@@ -239,7 +331,7 @@ GET /api/download/20231225123456_song_name/vocals.flac
 
 ---
 
-### 6. Download ZIP (All Files)
+### 10. Download ZIP (All Files)
 
 **Endpoint:** `GET /api/zip/<folder_id>`
 
@@ -263,7 +355,7 @@ GET /api/zip/20231225123456_song_name
 
 ---
 
-### 7. Download ZIP (Selected Files)
+### 11. Download ZIP (Selected Files)
 
 **Endpoint:** `POST /api/zip-selected`
 

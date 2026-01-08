@@ -39,7 +39,7 @@ The backend service for Music Track Separator, built with Flask. It handles file
 ## ▶️ Running the Server
 
 ```bash
-python app.py
+python api.py
 ```
 The server will start on `http://localhost:5000`.
 
@@ -47,17 +47,16 @@ The server will start on `http://localhost:5000`.
 
 ### 🎵 Audio Processing
 
+- **`GET /api/modules`**
+    - List available processing modules.
+
 - **`POST /api/process`**
     - Upload an audio file to process.
-    - **Body**: `form-data` with `file`.
+    - **Body**: `form-data` with `file`, `modules` (JSON string).
 
 - **`POST /api/process-url`**
     - Download and process audio from a YouTube URL.
-    - **Body**: JSON `{ "url": "https://youtube.com/..." }`
-
-- **`POST /api/mix`** (Note: Client currently uses `/api/unify` for combining stems)
-    - Mix specific stems into a single file.
-    - **Body**: JSON `{ "id": "folder_id", "tracks": ["vocals.wav", "drums.wav"] }`
+    - **Body**: JSON `{ "url": "...", "modules": [...] }`
 
 - **`POST /api/unify`**
     - Combine selected stems into a new track.
@@ -81,6 +80,6 @@ The server will start on `http://localhost:5000`.
 
 ## 📁 Directory Structure
 
-- **`app.py`**: Main application entry point and logic.
+- **`api.py`**: Main application entry point and logic.
 - **`uploads/`**: (Created at runtime) Stores temporary uploaded raw files.
-- **`output/`**: (Created at runtime) Stores processed audio stems, organized by timestamp and song title.
+- **`Library/`**: (Created at runtime) Stores processed audio stems, organized by timestamp and song title.
