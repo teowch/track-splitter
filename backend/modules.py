@@ -12,8 +12,8 @@ MODULE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "depends_on": None,
         "input_stem": None,
         "custom_output_names": {
-            "Vocals": "base_vocals",
-            "Instrumental": "base_instrumental"
+            "Vocals": "base_vocals.vocal",
+            "Instrumental": "base_instrumental.instrumental"
         }
     },
     "lead_backing": {
@@ -23,8 +23,8 @@ MODULE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "depends_on": "vocal_instrumental",
         "input_stem": "Vocals",
         "custom_output_names": {
-            "Vocals": "lead",
-            "Instrumental": "backing"
+            "Vocals": "lead_vocals.vocal",
+            "Instrumental": "backing_vocals.vocal"
         }
     },
     "male_female": {
@@ -34,8 +34,8 @@ MODULE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "depends_on": "vocal_instrumental",
         "input_stem": "Vocals",
         "custom_output_names": {
-            "Male": "male",
-            "Female": "female"
+            "Male": "male_vocals.vocal",
+            "Female": "female_vocals.vocal"
         }
     },
     "male_female_secondary": {
@@ -45,8 +45,8 @@ MODULE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "depends_on": "vocal_instrumental",
         "input_stem": "Vocals",
         "custom_output_names": {
-            "Male": "male_secondary",
-            "Female": "female_secondary"
+            "Male": "male_secondary.vocal",
+            "Female": "female_secondary.vocal"
         }
     },
     "htdemucs_6s": {
@@ -56,11 +56,12 @@ MODULE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "depends_on": None,
         "input_stem": None,
         "custom_output_names": {
-            "Drums": "htdemucs_6s_drums",
-            "Bass": "htdemucs_6s_bass",
-            "Other": "htdemucs_6s_other",
-            "Guitar": "htdemucs_6s_guitar",
-            "Piano": "htdemucs_6s_piano",
+            "Vocals": "vocals_htdemucs_6s.vocals",
+            "Drums": "drums_htdemucs_6s.drums",
+            "Bass": "bass_htdemucs_6s.bass",
+            "Other": "other_htdemucs_6s.other",
+            "Guitar": "guitar_htdemucs_6s.guitar",
+            "Piano": "piano_htdemucs_6s.piano",
         }
     }
 }
