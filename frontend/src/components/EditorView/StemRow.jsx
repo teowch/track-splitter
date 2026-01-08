@@ -265,42 +265,28 @@ const StemRow = ({
                 });
 
                 ws.on('error', (err) => {
-                    if (
-                        err.name === 'AbortError' ||
-                        err.message?.includes('aborted') ||
-                        err.toString().includes('aborted')
-                    ) return;
+                    if (err.name === 'AbortError')
+                        return;
                     console.error('WaveSurfer error:', stem, err);
                 });
 
                 // Load the audio URL directly (it's already a blob URL from EditorView)
-                await ws.load(audioUrl);
+                await ws.load(audioUrl).catch((e) => { if (e.name !== 'AbortError') console.error('WaveSurfer load error:', stem, e); });
 
                 // Check if we were aborted during loading
                 if (abortController.signal.aborted) {
                     if (ws) {
-                        try {
-                            if (ws.unAll) ws.unAll();
-                        } catch (e) { /* ignore */ }
+                        if (ws.unAll)
+                            ws.unAll();
                         ws.destroy();
                     }
                     return;
                 }
 
             } catch (err) {
-                // Ignore AbortErrors (expected during rapid navigation/updates)
-                const isAbort =
-                    err.name === 'AbortError' ||
-                    err.message === 'The user aborted a request.' ||
-                    err.message?.includes('aborted') ||
-                    err.toString().includes('aborted');
-
-                if (isAbort) {
+                if (err.name === 'AbortError') {
                     return;
-                }
-
-                // Log other errors
-                if (err.name === 'EncodingError') {
+                } else if (err.name === 'EncodingError') {
                     console.error(`Cannot decode ${stem}: The audio file may be corrupted or in an unsupported format.`, err);
                 } else if (err.name === 'NotReadableError') {
                     console.error(`Cannot read ${stem}: File became inaccessible during loading.`, err);
@@ -321,20 +307,9 @@ const StemRow = ({
             // Use a small timeout to ensure abort signal is processed
             setTimeout(() => {
                 if (ws) {
-                    try {
-                        try { if (ws.unAll) ws.unAll(); } catch (e) { }
-                        ws.destroy();
-                    } catch (e) {
-                        // Silently ignore destruction errors and abort errors
-                        const isAbort =
-                            e.name === 'AbortError' ||
-                            e.message?.includes('aborted') ||
-                            e.toString().includes('aborted');
-
-                        if (!isAbort) {
-                            console.debug('WaveSurfer destroy warning:', e);
-                        }
-                    }
+                    if (ws.unAll)
+                        ws.unAll();
+                    ws.destroy();
                 }
             }, 0);
 
