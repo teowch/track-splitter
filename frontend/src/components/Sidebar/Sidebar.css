@@ -17,19 +17,8 @@
     padding-left: 0.5rem;
 }
 
-.logo-circle {
-    width: 32px;
-    height: 32px;
-    background: linear-gradient(135deg, var(--primary), #b388ff);
-    border-radius: 8px;
-}
-
-.app-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-main);
-    margin: 0;
-    letter-spacing: -0.02em;
+.logo-image {
+    width: 100%;
 }
 
 .section-title {

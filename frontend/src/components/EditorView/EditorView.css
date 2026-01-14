@@ -364,6 +364,17 @@
     padding: 1rem;
 }
 
+/* Module Progress Section */
+.module-progress-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
 
 /* Player Stage (Right) */
 .player-stage {

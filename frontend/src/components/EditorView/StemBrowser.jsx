@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getModules, runModules, getProjectStatus } from '../../services/api';
+import { createSSEConnection } from '../../services/sse';
+import ProgressBar from '../common/ProgressBar';
 import './EditorView.css';
 
 /**
@@ -102,6 +104,10 @@ const StemBrowser = ({
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState(null);
 
+    // SSE and progress state
+    const sseRef = useRef(null);
+    const [moduleProgress, setModuleProgress] = useState({}); // { moduleId: { percentage, status, dependencyName } }
+
     const browserRef = useRef(null);
 
     // Fetch available modules and project status on mount/trackId change
@@ -152,17 +158,90 @@ const StemBrowser = ({
         );
     };
 
+    // Initialize module progress for selected modules
+    const initializeModuleProgress = (modulesArray) => {
+        const initial = {};
+        modulesArray.forEach(moduleId => {
+            initial[moduleId] = { percentage: 0, status: 'idle', dependencyName: '' };
+        });
+        setModuleProgress(initial);
+    };
+
+    // Connect to SSE stream for processing updates
+    const connectSSE = (jobId) => {
+        if (sseRef.current) {
+            sseRef.current.close();
+        }
+
+        sseRef.current = createSSEConnection(jobId, {
+            onModuleProgress: (data) => {
+                const { module, status, message } = data;
+                if (!module) return;
+
+                if (status === 'resolving_dependency') {
+                    setModuleProgress(prev => ({
+                        ...prev,
+                        [module]: {
+                            ...prev[module],
+                            status: 'resolving_dependency',
+                            dependencyName: message
+                        }
+                    }));
+                } else if (status === 'running') {
+                    const percentage = parseInt(message, 10) || 0;
+                    setModuleProgress(prev => ({
+                        ...prev,
+                        [module]: {
+                            percentage,
+                            status: percentage >= 100 ? 'complete' : 'running',
+                            dependencyName: ''
+                        }
+                    }));
+                }
+            },
+            onError: (data) => {
+                const { module, message } = data;
+                if (module) {
+                    setModuleProgress(prev => ({
+                        ...prev,
+                        [module]: { ...prev[module], status: 'error' }
+                    }));
+                }
+                setError(message || 'Processing error');
+            },
+            onDone: () => {
+                // Processing complete
+            }
+        });
+    };
+
     const handleRunModules = async () => {
         if (selectedModules.length === 0 || !trackId) return;
 
         setProcessing(true);
         setError(null);
 
+        // Initialize progress for selected modules
+        initializeModuleProgress(selectedModules);
+
         try {
-            const result = await runModules(trackId, selectedModules);
+            // Start API call - SSE is created by backend when processing starts
+            const apiPromise = runModules(trackId, selectedModules);
+
+            // Connect to SSE after delay to allow backend to create channel
+            setTimeout(() => connectSSE(trackId), 500);
+
+            const result = await apiPromise;
             console.log('Modules processed:', result);
 
+            // Close SSE connection
+            if (sseRef.current) {
+                sseRef.current.close();
+                sseRef.current = null;
+            }
+
             setExecutedModules(result.executed_modules || []);
+            setModuleProgress({}); // Clear progress
 
             if (onNewStemsAvailable && result.stems) {
                 onNewStemsAvailable(result.stems);
@@ -170,6 +249,10 @@ const StemBrowser = ({
 
             setSelectedModules([]);
         } catch (err) {
+            if (sseRef.current) {
+                sseRef.current.close();
+                sseRef.current = null;
+            }
             console.error('Failed to run modules:', err);
             setError(err.response?.data?.error || 'Failed to process modules');
         } finally {
@@ -346,6 +429,26 @@ const StemBrowser = ({
                                             </label>
                                         ))}
                                     </div>
+
+                                    {/* Module Progress Bars - shown during processing */}
+                                    {processing && Object.keys(moduleProgress).length > 0 && (
+                                        <div className="module-progress-section">
+                                            {Object.entries(moduleProgress).map(([moduleId, progress]) => {
+                                                const moduleInfo = modules.find(m => m.id === moduleId);
+                                                const label = moduleInfo?.description || moduleId;
+                                                return (
+                                                    <ProgressBar
+                                                        key={moduleId}
+                                                        label={label}
+                                                        percentage={progress.percentage}
+                                                        status={progress.status}
+                                                        dependencyName={progress.dependencyName}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
                                     <button
                                         className="btn btn-primary run-modules-btn"
                                         onClick={handleRunModules}

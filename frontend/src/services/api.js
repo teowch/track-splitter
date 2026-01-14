@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-export const API_BASE = 'http://127.0.0.1:5000/api';
+export const BASE = 'http://127.0.0.1:5000';
+export const API_BASE = `${BASE}/api`;
+export const SSE_BASE = `${BASE}/api/sse`;
 
 /**
  * Get list of stems
@@ -44,12 +46,14 @@ export const downloadStem = async (trackId, stemName) => {
  * Upload and process an audio file
  * @param {File} file - The audio file to process
  * @param {Array<string>} modules - Array of module IDs to run (required)
+ * @param {string} temp_project_id - Temporary project ID for SSE tracking
  * @returns {Promise<Object>} Response data with track ID
  */
-export const processFile = async (file, modules) => {
+export const processFile = async (file, modules, temp_project_id) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('modules', JSON.stringify(modules));
+    formData.append('temp_project_id', temp_project_id);
     const response = await axios.post(`${API_BASE}/process`, formData);
     return response.data;
 };
@@ -61,7 +65,10 @@ export const processFile = async (file, modules) => {
  * @returns {Promise<Object>} Response data with track ID
  */
 export const processUrl = async (url, modules) => {
-    const response = await axios.post(`${API_BASE}/process-url`, { url, modules });
+    url = url.split('&')[0]
+    let temp_project_id = url.split('=')
+    temp_project_id = temp_project_id[temp_project_id.length - 1]
+    const response = await axios.post(`${API_BASE}/process-url`, { url, modules, temp_project_id });
     return response.data;
 };
 

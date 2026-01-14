@@ -1,15 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import logo from '../../assets/logo.png'
 import './Sidebar.css';
 
 const Sidebar = () => {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="logo-placeholder">
-          <div className="logo-circle"></div>
-        </div>
-        <h1 className="app-title">Track Splitter</h1>
+        <img src={logo} alt="Unweave" className='logo-image' />
       </div>
 
       <nav className="sidebar-nav">
