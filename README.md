@@ -4,27 +4,22 @@
 
 ## Preview
 
-<table align="center" style="border: none;">
-<tr>
-    <td align="center">
+<div style="display: flex; justify-content: center; gap: 20px">
+    <div style="width: 50%; display: flex; flex-direction: column; align-items: center;">
       <img src="docs/screenshots/home.png" alt="Home View" width="100%"/>
-      <br/>
       <em>Home / Upload View</em>
-    </td>
-    <td align="center">
+    </div>
+    <div style="width: 50%; display: flex; flex-direction: column; align-items: center;">
       <img src="docs/screenshots/library.png" alt="Library View" width="100%"/>
-      <br/>
       <em>Project Library</em>
-    </td>
-</tr>
-<tr>
-    <td align="center" colspan="2">
-      <img src="docs/screenshots/project.png" alt="Project View" width="75%"/>
-      <br/>
+    </div>
+</div>
+<div style="display: flex; justify-content: center; margin-top: 20px">
+    <div style="width: 75%; display: flex; flex-direction: column; align-items: center;">
+      <img src="docs/screenshots/project.png" alt="Project View" width="100%"/>
       <em>Audio Editor Workspace</em>
-    </td>
-</tr>
-</table>
+    </div>
+</div>
 
 ## Features
 
