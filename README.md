@@ -4,7 +4,7 @@
 
 ## Preview
 
-<table align="center" border="0">
+<table align="center" style="border: none;">
 <tr>
     <td align="center">
       <img src="docs/screenshots/home.png" alt="Home View" width="100%"/>
